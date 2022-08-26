@@ -1,0 +1,29 @@
+{
+    "_meta": {
+        "hash": {
+            "sha256": "83a1c400213b761917f9c90ce0063eda81da938bbbd85403c9025cd2e658c403"
+        },
+        "pipfile-spec": 6,
+        "requires": {
+            "python_version": "3.10"
+        },
+        "sources": [
+            {
+                "name": "pypi",
+                "url": "https://pypi.org/simple",
+                "verify_ssl": true
+            }
+        ]
+    },
+    "default": {
+        "rust-demangler": {
+            "hashes": [
+                "sha256:2a2cdf400d1703dc73ae3aabb930dacb92772160b1dcb4ee2181a81878726948",
+                "sha256:a3e88032e691322d14cec137f7d9afbe44ac65a84217c599bd2cfe480ec8bd0f"
+            ],
+            "index": "pypi",
+            "version": "==1.0"
+        }
+    },
+    "develop": {}
+}
