@@ -23,7 +23,7 @@ def parse_logs():
     parent_stack = []
     function_length = {}
     function_instruction_count = {}
-    with open('disass.log', "r") as fp:
+    with open('logs/disass.log', "r") as fp:
         data = fp.read()
         parsed_data = data.split('\n\n')
         for function_trace in parsed_data:
@@ -31,14 +31,14 @@ def parse_logs():
             func_address = lines[0].split(' ')[0]
             func_trace_length = len(lines[1:])
             function_length[func_address] = func_trace_length
-    with open('headers.log', "r") as f:
+    with open('logs/headers.log', "r") as f:
         symtable = parse_headers(f)
         function_instructions = initialize_function_instructions(symtable)
         function_self_time = initialize_function_table(symtable)
         function_total_time = initialize_function_table(symtable)
         function_calls = initialize_function_table(symtable)
         function_calls_by_address = {}
-        with open('out.log', 'r') as logfile:
+        with open('logs/out.log', 'r') as logfile:
             data = logfile.read()
             parsed_data = re.findall(
                 '\s*(\d+\.\d{3}) \((\d+\.\d{3})\): C(\d+): ([a-zA-Z ]+):? ?(.*)\n', data)
