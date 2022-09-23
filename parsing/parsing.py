@@ -7,7 +7,7 @@ def parse_headers(f):
     # Parsing header of ELF file using regex
     data = f.read()
     parsed_data = re.findall(
-        '([0-9a-f]{8}) ([lgu!]) +([wCWIidDFfO]*) +\.text\t([0-9a-f]{8}) (.*)', data)
+        '([0-9a-f]{8})\s+([lgu!])\s+([wCWIidDFfO]*)\s+\.text\t([0-9a-f]{8})[\s|.hidden]+(.*)', data)
     symbols_table = {}
     for symbol in parsed_data:
         symbols_table[symbol[0]] = demangle(symbol[4])
@@ -22,6 +22,7 @@ def parse_logs():
     entry_time = []
     parent_stack = []
     function_length = {}
+    function_instruction_count = {}
     with open('disass.log', "r") as fp:
         data = fp.read()
         parsed_data = data.split('\n\n')
@@ -30,7 +31,6 @@ def parse_logs():
             func_address = lines[0].split(' ')[0]
             func_trace_length = len(lines[1:])
             function_length[func_address] = func_trace_length
-        # print(function_length)
     with open('headers.log', "r") as f:
         symtable = parse_headers(f)
         function_instructions = initialize_function_instructions(symtable)
@@ -41,7 +41,7 @@ def parse_logs():
         with open('out.log', 'r') as logfile:
             data = logfile.read()
             parsed_data = re.findall(
-                '  (\d+\.\d{3}) \((\d+\.\d{3})\): C(\d+): ([a-zA-Z ]+):? ?(.*)\n', data)
+                '\s*(\d+\.\d{3}) \((\d+\.\d{3})\): C(\d+): ([a-zA-Z ]+):? ?(.*)\n', data)
             entry = True
             for cycle in parsed_data:
                 time = float(cycle[0])
@@ -52,8 +52,7 @@ def parse_logs():
                     if inst_data[0][1] == 'Decode':
                         # This is where we update our instruction counters.
                         if entry:
-                            call_stack.append(
-                                demangle(symtable[inst_data[0][0]]))
+                            call_stack.append(symtable[inst_data[0][0]])
                             entry_time = time
                             entry = False
                         params = re.findall(
@@ -64,6 +63,8 @@ def parse_logs():
                                                                 [0], 0) + timedelta
                         function_instructions[call_stack[-1]][params[0][0]] = function_instructions.get(
                             call_stack[-1], {}).get(params[0][0], 0) + 1
+                        function_instruction_count[tuple(call_stack[-3:])] = function_instruction_count.get(
+                            tuple(call_stack[-3:]), 0) + 1
                         # Here is where we update the call stack. Originally, this was done by doing a bisection search for pc in the symtable
                         # at each clock cycle but it's must faster to update the call stack at each jump instruction.
                         # Jump instructions have to be categorized in a unique way since not all jump instructions behave in the same way.
@@ -150,5 +151,9 @@ def parse_logs():
         else:
             m = number_of_calls * function_length[address]
             results.append((address, m))
-    print("total trace is", sum(val[1] for val in results))
-    print(sorted(results, key=lambda y: y[1], reverse=True))
+    s = (sorted(function_instruction_count.items(),
+                key=lambda y: y[1], reverse=True))
+    for i in s:
+        print(i)
+    # print("total trace is", sum(val[1] for val in results))
+    # print(sorted(results, key=lambda y: y[1], reverse=True))
