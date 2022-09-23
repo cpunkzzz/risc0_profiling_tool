@@ -2,6 +2,8 @@ import re
 from parsing.instructions import *
 from parsing.utils import *
 
+STACK_DEPTH_FOR_INSTRUCTION_COUNT = 10
+
 
 def parse_headers(f):
     # Parsing header of ELF file using regex
@@ -23,7 +25,7 @@ def parse_logs():
     parent_stack = []
     function_length = {}
     function_instruction_count = {}
-    with open('disass.log', "r") as fp:
+    with open('logs/disass.log', "r") as fp:
         data = fp.read()
         parsed_data = data.split('\n\n')
         for function_trace in parsed_data:
@@ -31,14 +33,14 @@ def parse_logs():
             func_address = lines[0].split(' ')[0]
             func_trace_length = len(lines[1:])
             function_length[func_address] = func_trace_length
-    with open('headers.log', "r") as f:
+    with open('logs/headers.log', "r") as f:
         symtable = parse_headers(f)
         function_instructions = initialize_function_instructions(symtable)
         function_self_time = initialize_function_table(symtable)
         function_total_time = initialize_function_table(symtable)
         function_calls = initialize_function_table(symtable)
         function_calls_by_address = {}
-        with open('out.log', 'r') as logfile:
+        with open('logs/out.log', 'r') as logfile:
             data = logfile.read()
             parsed_data = re.findall(
                 '\s*(\d+\.\d{3}) \((\d+\.\d{3})\): C(\d+): ([a-zA-Z ]+):? ?(.*)\n', data)
@@ -61,10 +63,10 @@ def parse_logs():
                             params[0][0], 0) + 1
                         inst_time[params[0][0]] = inst_time.get(params[0]
                                                                 [0], 0) + timedelta
-                        function_instructions[call_stack[-1]][params[0][0]] = function_instructions.get(
-                            call_stack[-1], {}).get(params[0][0], 0) + 1
-                        function_instruction_count[tuple(call_stack[-3:])] = function_instruction_count.get(
-                            tuple(call_stack[-3:]), 0) + 1
+                        # function_instructions[call_stack[-1]][params[0][0]] = function_instructions.get(
+                        #     call_stack[-1], {}).get(params[0][0], 0) + 1
+                        function_instruction_count[tuple(call_stack[-STACK_DEPTH_FOR_INSTRUCTION_COUNT:])] = function_instruction_count.get(
+                            tuple(call_stack[-STACK_DEPTH_FOR_INSTRUCTION_COUNT:]), 0) + 1
                         # Here is where we update the call stack. Originally, this was done by doing a bisection search for pc in the symtable
                         # at each clock cycle but it's must faster to update the call stack at each jump instruction.
                         # Jump instructions have to be categorized in a unique way since not all jump instructions behave in the same way.
@@ -92,35 +94,37 @@ def parse_logs():
                                         symtable[next_address])
                                     parent_stack.append(cur_symbol)
                                     call_stack.append(next_symbol)
-                                    function_self_time[cur_symbol] += time - \
-                                        entry_time
-                                    function_total_time = update_function_total_time(
-                                        function_total_time, time - entry_time)
-                                    function_calls[next_symbol] += 1
+                                    # function_self_time[cur_symbol] += time - \
+                                    #     entry_time
+                                    # function_total_time = update_function_total_time(
+                                    #     function_total_time, time - entry_time)
+                                    # function_calls[next_symbol] += 1
                                     function_calls_by_address[next_address] = function_calls_by_address.get(
                                         next_address, 0) + 1
                                     entry_time = time
                                 else:
                                     # ret-type
-                                    idx = call_stack.index(parent_stack[-1])
-                                    call_stack = call_stack[:idx+1]
-                                    parent_stack.pop()
-                                    function_self_time[cur_symbol] += time - \
-                                        entry_time
-                                    function_total_time = update_function_total_time(
-                                        function_total_time, time - entry_time)
-                                    entry_time = time
+                                    if len(parent_stack) > 0:
+                                        idx = call_stack.index(
+                                            parent_stack[-1])
+                                        call_stack = call_stack[:idx+1]
+                                        parent_stack.pop()
+                                        function_self_time[cur_symbol] += time - \
+                                            entry_time
+                                        function_total_time = update_function_total_time(
+                                            function_total_time, time - entry_time)
+                                        entry_time = time
                             else:
                                 # jump-nolink
                                 next_address = '{:08x}'.format(r1+imm)
                                 next_symbol = demangle(
-                                    symtable[next_address])
+                                    symtable[next_address]) if next_address in symtable else next_address
                                 call_stack.append(next_symbol)
-                                function_self_time[cur_symbol] += time - \
-                                    entry_time
-                                function_total_time = update_function_total_time(
-                                    function_total_time, time - entry_time)
-                                function_calls[next_symbol] += 1
+                                # function_self_time[cur_symbol] += time - \
+                                #     entry_time
+                                # function_total_time = update_function_total_time(
+                                #     function_total_time, time - entry_time)
+                                # function_calls[next_symbol] += 1
                                 function_calls_by_address[next_address] = function_calls_by_address.get(
                                     next_address, 0) + 1
                                 entry_time = time
@@ -136,11 +140,11 @@ def parse_logs():
                                     symtable[next_address])
                                 parent_stack.append(cur_symbol)
                                 call_stack.append(next_symbol)
-                                function_self_time[cur_symbol] += time - \
-                                    entry_time
-                                function_total_time = update_function_total_time(
-                                    function_total_time, time - entry_time)
-                                function_calls[next_symbol]
+                                # function_self_time[cur_symbol] += time - \
+                                #     entry_time
+                                # function_total_time = update_function_total_time(
+                                #     function_total_time, time - entry_time)
+                                # function_calls[next_symbol]
                                 function_calls_by_address[next_address] = function_calls_by_address.get(
                                     next_address, 0) + 1
                                 entry_time = time
@@ -153,7 +157,7 @@ def parse_logs():
             results.append((address, m))
     s = (sorted(function_instruction_count.items(),
                 key=lambda y: y[1], reverse=True))
-    for i in s:
+    for i in s[0:15]:
         print(i)
     # print("total trace is", sum(val[1] for val in results))
     # print(sorted(results, key=lambda y: y[1], reverse=True))

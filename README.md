@@ -11,7 +11,8 @@ Currently, this tool provides an array containing the call stack at each instruc
 
 ## macOS
 1. `brew install binutils`
-2. `gobjdump -x target/release/build/methods-90f6be41a852e91f/out/riscv-guest/riscv32im-risc0-zkvm-elf/release/recursive > headers.log`
-3. `gobjdump -d target/release/build/methods-90f6be41a852e91f/out/riscv-guest/riscv32im-risc0-zkvm-elf/release/recursive > disass.log`
-4. `cargo run --release &> out.log`
-5. `pipenv run python3 prof.py`
+2. `METHODS=methods-f7c7b90a01a011bf` (find the right hash for methods by `find . -name methods`)
+3. `gobjdump -x target/release/build/${METHODS}/out/riscv-guest/riscv32im-risc0-zkvm-elf/release/recursive > logs/headers.log`
+4. `gobjdump -d target/release/build/${METHODS}/out/riscv-guest/riscv32im-risc0-zkvm-elf/release/recursive > logs/disass.log`
+5. `cargo run --release &> logs/out.log`
+6. `pipenv run python3 prof.py`
